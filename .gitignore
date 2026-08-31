@@ -1,0 +1,19 @@
+# OCaml build artifacts
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
+*.a
+*.o
+*.annot
+*.cache
+*.exe
+
+# Build directories
+_build/
+_site/
+
+# Editor / OS files
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,15 @@
+@prefix : <urn:genealogy:> .
+
+:maria a :Person .
+
+:alex a :Person .
+
+:parish-record-17 a :Source .
+
+:assertion-1 a :ParentageAssertion ;
+  :parent :maria ;
+  :child :alex ;
+  :relationshipType :Biological ;
+  :supportedBy :parish-record-17 ;
+  :confidence :Probable .
+
