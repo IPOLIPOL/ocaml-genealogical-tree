@@ -33,9 +33,8 @@ let () =
         relation.subject
         (match relation.role with Husband -> "husband_of" | Wife -> "wife_of" | Spouse -> "spouse_of")
         relation.spouse)
-    marriage_relations
+    marriage_relations;
 
-(* Export to SVG *)
   Graph_export.export_to_svg
     people
     parent_child_relations

@@ -1,6 +1,6 @@
 open Genealogy_types
 
-(*   Parent-child relations   *)
+(*  Marriage relations    *)
 
 let rudkina_nina_wife_of_kotlykov_pavel =
   {
@@ -26,7 +26,7 @@ let kotlykov_pavel_husband_of_rudkina_nina =
     confidence = Certain;
   }
 
-  (*   Marriage relations   *)
+  (*   Parent-child relations   *)
 
 let rudkina_nina_mother_of_kotlykov_andrei =
   {
