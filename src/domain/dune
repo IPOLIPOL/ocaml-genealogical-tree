@@ -1,0 +1,11 @@
+(library
+ (name genealogy)
+ (wrapped false)
+ (modules
+  genealogy_types
+  person
+  relation
+  event
+  validation
+  genealogy
+  query))

@@ -1,0 +1,8 @@
+(library
+ (name data)
+ (libraries genealogy)
+ (wrapped false)
+ (modules
+  persons
+  parent_child_relations
+  spouse_relations))

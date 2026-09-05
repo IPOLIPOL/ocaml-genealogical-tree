@@ -1,4 +1,4 @@
 (executable
- (name main)
- (libraries ocamlgraph unix)
- (modules :standard))
+ (name explore)
+ (libraries genealogy data)
+ (modules explore))

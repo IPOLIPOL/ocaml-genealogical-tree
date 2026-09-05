@@ -1,3 +1,5 @@
+(* DOMAIN VOCABULARY: fundamental types used to represent genealogical facts. *)
+
 type iri = string
 
 type date =
@@ -41,16 +43,10 @@ type parent_child_relation = {
   confidence : confidence;
 }
 
-type marriage_role =
-  | Husband
-  | Wife
-  | Spouse
-
-type marriage_relation = {
+type spouse_relation = {
   id : iri;
-  subject : iri;
-  role : marriage_role;
-  spouse : iri;
+  person1 : iri;
+  person2 : iri;
   marriage_date : date;
   place : string option;
   source : iri option;
