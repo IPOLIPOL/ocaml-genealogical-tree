@@ -3,6 +3,6 @@
  (libraries genealogy)
  (wrapped false)
  (modules
-  persons
+  registry
   parent_child_relations
   spouse_relations))

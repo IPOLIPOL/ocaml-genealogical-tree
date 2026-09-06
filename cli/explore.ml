@@ -3,11 +3,11 @@
 let g =
   match
     Genealogy.create
-      ~people:Persons.persons
+      ~registry:Registry.registry
       ~parent_child_relations:Parent_child_relations.parent_child_relations
       ~spouse_relations:Spouse_relations.spouse_relations
   with
-  | Ok g -> g
+  | Ok graph -> graph
   | Error errors ->
       List.iter
         (fun e -> prerr_endline (Validation.string_of_error e))
@@ -31,6 +31,19 @@ let () =
   List.iter (Printf.printf "  %s\n") (Query.spouses g nina);
 
   Printf.printf "\n=== Descendants of Ksenia ===\n";
-  List.iter (Printf.printf "  %s\n") (Query.descendants g ":korotueva_kseniia");
+  List.iter
+    (Printf.printf "  %s\n")
+    (Query.descendants g ":korotueva_kseniia");
+
+  (* Example of using Individual derived operations *)
+  begin match Genealogy.individual g andrei with
+  | Some ind ->
+      Printf.printf "\n=== Andrei living? %b ===\n" (Individual.is_living ind);
+      begin match Individual.birth_year ind with
+      | Some y -> Printf.printf "Andrei birth year: %d\n" y
+      | None -> ()
+      end
+  | None -> ()
+  end;
 
   Printf.printf "\nOK\n"

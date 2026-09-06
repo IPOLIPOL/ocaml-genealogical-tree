@@ -18,51 +18,42 @@ let unwrap = function
 let () =
   let g =
     Genealogy.create
-      ~people:Persons.persons
-      ~parent_child_relations:
-        Parent_child_relations.parent_child_relations
-      ~spouse_relations:
-        Spouse_relations.spouse_relations
+      ~registry:Registry.registry
+      ~parent_child_relations:Parent_child_relations.parent_child_relations
+      ~spouse_relations:Spouse_relations.spouse_relations
     |> unwrap
   in
 
   check
-    (List.length (Genealogy.people g) = 7)
-    "expected 7 people";
+    (List.length (Genealogy.individuals g) = 7)
+    "expected 7 individuals";
 
   check
-    (List.mem ":rudkina_nina"
-       (Query.parents g ":kotlykov_andrei"))
+    (List.mem ":rudkina_nina" (Query.parents g ":kotlykov_andrei"))
     "Nina should be Andrei's parent";
 
   check
-    (List.mem ":kotlykov_pavel"
-       (Query.parents g ":kotlykov_andrei"))
+    (List.mem ":kotlykov_pavel" (Query.parents g ":kotlykov_andrei"))
     "Pavel should be Andrei's parent";
 
   check
-    (List.mem ":kotlykov_andrei"
-       (Query.children g ":rudkina_nina"))
+    (List.mem ":kotlykov_andrei" (Query.children g ":rudkina_nina"))
     "Andrei should be Nina's child";
 
   check
-    (List.mem ":kotlykov_pavel"
-       (Query.spouses g ":rudkina_nina"))
+    (List.mem ":kotlykov_pavel" (Query.spouses g ":rudkina_nina"))
     "Pavel should be Nina's spouse";
 
   check
-    (List.mem ":rudkina_nina"
-       (Query.spouses g ":kotlykov_pavel"))
+    (List.mem ":rudkina_nina" (Query.spouses g ":kotlykov_pavel"))
     "Nina should be Pavel's spouse";
 
   check
-    (List.mem ":afanasyeva_proskovya"
-       (Query.ancestors g ":kotlykov_andrei"))
+    (List.mem ":afanasyeva_proskovya" (Query.ancestors g ":kotlykov_andrei"))
     "Proskovya should be an ancestor of Andrei";
 
   check
-    (List.mem ":kotlykov_andrei"
-       (Query.descendants g ":korotueva_kseniia"))
+    (List.mem ":kotlykov_andrei" (Query.descendants g ":korotueva_kseniia"))
     "Andrei should descend from Ksenia";
 
   print_endline "OK: core genealogy tests passed"

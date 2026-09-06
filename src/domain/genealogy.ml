@@ -1,11 +1,12 @@
-(* Genealogy owns a structurally valid graph and builds inverse/symmetric indexes from asserted facts. *)
+(* Genealogy owns a structurally valid graph and builds inverse/symmetric indexes
+   from asserted facts. *)
 
 open Genealogy_types
 
 module String_map = Map.Make (String)
 
-type t = {
-  people : person String_map.t;
+type graph = {
+  individuals : individual String_map.t;
   parent_child_relations : parent_child_relation list;
   spouse_relations : spouse_relation list;
   parents_of : iri list String_map.t;
@@ -14,17 +15,20 @@ type t = {
 }
 
 let add_to_index key value index =
-  let old =
+  let existing =
     match String_map.find_opt key index with
-    | Some xs -> xs
+    | Some values -> values
     | None -> []
   in
-  String_map.add key (value :: old) index
+  String_map.add key (value :: existing) index
 
-let build_people (people : person list) =
+(* Builds the individual map from the asserted registry list. *)
+let build_individuals (registry : individual list) =
   List.fold_left
-    (fun map (person : person) -> String_map.add person.id person map)
-    String_map.empty people
+    (fun (map : individual String_map.t) (individual : individual) ->
+      String_map.add individual.id individual map)
+    String_map.empty
+    registry
 
 let build_indexes
     (parent_child_relations : parent_child_relation list)
@@ -32,40 +36,53 @@ let build_indexes
   let parents_of = ref String_map.empty in
   let children_of = ref String_map.empty in
   let spouses_of = ref String_map.empty in
+
   List.iter
-    (fun (r : parent_child_relation) ->
-      if r.confidence <> Rejected then begin
-        parents_of := add_to_index r.child r.parent !parents_of;
-        children_of := add_to_index r.parent r.child !children_of
+    (fun (parent_child : parent_child_relation) ->
+      if parent_child.confidence <> Rejected then begin
+        parents_of :=
+          add_to_index parent_child.child parent_child.parent !parents_of;
+        children_of :=
+          add_to_index parent_child.parent parent_child.child !children_of
       end)
     parent_child_relations;
+
   List.iter
-    (fun (r : spouse_relation) ->
-      if r.confidence <> Rejected then begin
-        spouses_of := add_to_index r.person1 r.person2 !spouses_of;
-        spouses_of := add_to_index r.person2 r.person1 !spouses_of
+    (fun (spouse : spouse_relation) ->
+      if spouse.confidence <> Rejected then begin
+        spouses_of :=
+          add_to_index spouse.person1 spouse.person2 !spouses_of;
+        spouses_of :=
+          add_to_index spouse.person2 spouse.person1 !spouses_of
       end)
     spouse_relations;
+
   (!parents_of, !children_of, !spouses_of)
 
+(* GEDCOM-aligned: the asserted collection is called "registry". *)
 let create
-    ~(people : person list)
+    ~(registry : individual list)
     ~(parent_child_relations : parent_child_relation list)
-    ~(spouse_relations : spouse_relation list) =
+    ~(spouse_relations : spouse_relation list)
+  : (graph, Validation.error list) result =
   let relations =
-    List.map (fun (r : parent_child_relation) -> Relation.Parent_child r) parent_child_relations
-    @ List.map (fun (r : spouse_relation) -> Relation.Spouse r) spouse_relations
+    List.map
+      (fun parent_child -> Relation.Parent_child parent_child)
+      parent_child_relations
+    @ List.map
+        (fun spouse -> Relation.Spouse spouse)
+        spouse_relations
   in
-  match Validation.validate ~people ~relations with
+  match Validation.validate ~individuals:registry ~relations with
   | _ :: _ as errors -> Error errors
   | [] ->
-      let people = build_people people in
+      let individual_map = build_individuals registry in
       let parents_of, children_of, spouses_of =
         build_indexes parent_child_relations spouse_relations
       in
       Ok
         {
-          people;
+          individuals = individual_map;
           parent_child_relations;
           spouse_relations;
           parents_of;
@@ -73,63 +90,67 @@ let create
           spouses_of;
         }
 
-let person t id = String_map.find_opt id t.people
+let individual (graph : graph) id =
+  String_map.find_opt id graph.individuals
 
-let people t = String_map.bindings t.people |> List.map snd
+let individuals (graph : graph) =
+  String_map.bindings graph.individuals |> List.map snd
 
-let parent_child_relations t = t.parent_child_relations
+let parent_child_relations (graph : graph) =
+  graph.parent_child_relations
 
-let spouse_relations t = t.spouse_relations
+let spouse_relations (graph : graph) =
+  graph.spouse_relations
 
-let parents_of t id =
-  match String_map.find_opt id t.parents_of with
-  | Some xs -> List.rev xs
+let parents_of (graph : graph) id =
+  match String_map.find_opt id graph.parents_of with
+  | Some parents -> List.rev parents
   | None -> []
 
-let children_of t id =
-  match String_map.find_opt id t.children_of with
-  | Some xs -> List.rev xs
+let children_of (graph : graph) id =
+  match String_map.find_opt id graph.children_of with
+  | Some children -> List.rev children
   | None -> []
 
-let spouses_of t id =
-  match String_map.find_opt id t.spouses_of with
-  | Some xs -> List.rev xs
+let spouses_of (graph : graph) id =
+  match String_map.find_opt id graph.spouses_of with
+  | Some spouses -> List.rev spouses
   | None -> []
 
-let events t =
-  let person_events =
+let events (graph : graph) =
+  let individual_events =
     List.concat_map
-      (fun (p : person) ->
+      (fun individual ->
         let birth =
-          match p.birth_date with
+          match individual.birth_date with
           | Unknown -> []
-          | date -> [ Event.Birth { person = p.id; date } ]
+          | date -> [ Event.Birth { person = individual.id; date } ]
         in
         let death =
-          match p.death_date with
+          match individual.death_date with
           | Unknown | Present -> []
-          | date -> [ Event.Death { person = p.id; date } ]
+          | date -> [ Event.Death { person = individual.id; date } ]
         in
         birth @ death)
-      (people t)
+      (individuals graph)
   in
   let marriage_events =
     List.filter_map
-      (fun (r : spouse_relation) ->
-        match r.marriage_date with
+      (fun spouse ->
+        match spouse.marriage_date with
         | Unknown -> None
         | date ->
             Some
               (Event.Marriage
                  {
-                   relation = r.id;
-                   person1 = r.person1;
-                   person2 = r.person2;
+                   relation = spouse.id;
+                   person1 = spouse.person1;
+                   person2 = spouse.person2;
                    date;
-                   place = r.place;
-                   source = r.source;
-                   confidence = r.confidence;
+                   place = spouse.place;
+                   source = spouse.source;
+                   confidence = spouse.confidence;
                  }))
-      t.spouse_relations
+      graph.spouse_relations
   in
-  person_events @ marriage_events
+  individual_events @ marriage_events

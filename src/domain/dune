@@ -3,7 +3,7 @@
  (wrapped false)
  (modules
   genealogy_types
-  person
+  individual
   relation
   event
   validation

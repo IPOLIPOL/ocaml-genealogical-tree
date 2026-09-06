@@ -18,7 +18,7 @@ type confidence =
   | Possible
   | Rejected
 
-type person = {
+type individual = {
   id : iri;
   name : string;
   name_ru : string;

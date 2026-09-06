@@ -2,17 +2,15 @@
 
 open Genealogy_types
 
-type t =
+type event =
   | Birth of {
       person : iri;
       date : date;
     }
-
   | Death of {
       person : iri;
       date : date;
     }
-
   | Marriage of {
       relation : iri;
       person1 : iri;
