@@ -45,8 +45,8 @@ type parent_child_relation = {
 
 type spouse_relation = {
   id : iri;
-  person1 : iri;
-  person2 : iri;
+  individual1_id : iri;
+  individual2_id : iri;
   marriage_date : date;
   place : string option;
   source : iri option;

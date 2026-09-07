@@ -4,17 +4,17 @@ open Genealogy_types
 
 type event =
   | Birth of {
-      person : iri;
+      individual_id : iri;
       date : date;
     }
   | Death of {
-      person : iri;
+      individual_id : iri;
       date : date;
     }
   | Marriage of {
-      relation : iri;
-      person1 : iri;
-      person2 : iri;
+      relation_id : iri;
+      individual1_id : iri;
+      individual2_id : iri;
       date : date;
       place : string option;
       source : iri option;

@@ -1,5 +1,3 @@
-(* graph_export.ml *)
-
 open Genealogy_types
 
 module G = Graph.Imperative.Digraph.Concrete (struct
@@ -11,9 +9,11 @@ end)
 
 module Dot = Graph.Graphviz.Dot (struct
   include G
+
   let graph_attributes _ = []
   let default_vertex_attributes _ = []
-  let vertex_name v = Printf.sprintf "\"%s\"" v
+  let vertex_name vertex =
+    Printf.sprintf "\"%s\"" vertex
   let vertex_attributes _ = []
   let get_subgraph _ = None
   let default_edge_attributes _ = []
@@ -21,58 +21,112 @@ module Dot = Graph.Graphviz.Dot (struct
 end)
 
 let build_graph
-    (people : person list)
-    (parent_child_relations : parent_child_relation list) : G.t =
+    (individuals : individual list)
+    (parent_child_relations : parent_child_relation list)
+    : G.t =
   let graph = G.create () in
+
   List.iter
-    (fun (p : person) ->
-      if not (G.mem_vertex graph p.id) then G.add_vertex graph p.id)
-    people;
+    (fun individual_value ->
+      if not
+           (G.mem_vertex graph individual_value.id)
+      then
+        G.add_vertex
+          graph
+          individual_value.id)
+    individuals;
+
   List.iter
-    (fun (rel : parent_child_relation) ->
-      if not (G.mem_vertex graph rel.parent) then
-        G.add_vertex graph rel.parent;
-      if not (G.mem_vertex graph rel.child) then
-        G.add_vertex graph rel.child;
-      G.add_edge graph rel.parent rel.child)
+    (fun parent_child ->
+      if not
+           (G.mem_vertex graph parent_child.parent)
+      then
+        G.add_vertex
+          graph
+          parent_child.parent;
+
+      if not
+           (G.mem_vertex graph parent_child.child)
+      then
+        G.add_vertex
+          graph
+          parent_child.child;
+
+      G.add_edge
+        graph
+        parent_child.parent
+        parent_child.child)
     parent_child_relations;
+
   graph
 
-let rec read_all_lines chan =
+let rec read_all_lines channel =
   try
-    let line = input_line chan in
-    line :: read_all_lines chan
-  with End_of_file -> []
+    let line = input_line channel in
+    line :: read_all_lines channel
+  with
+  | End_of_file ->
+      []
 
 let export_to_svg
-    (people : person list)
+    (individuals : individual list)
     (parent_child_relations : parent_child_relation list)
-    (output_file : string) : unit =
-  let graph = build_graph people parent_child_relations in
+    (output_file : string)
+    : unit =
+  let graph =
+    build_graph
+      individuals
+      parent_child_relations
+  in
 
-  let dir = Filename.dirname output_file in
-  if not (Sys.file_exists dir) then Unix.mkdir dir 0o755;
+  let directory =
+    Filename.dirname output_file
+  in
 
-  let svg_out, dot_in = Unix.open_process "dot -Tsvg" in
-  Dot.output_graph dot_in graph;
-  flush dot_in;
-  close_out dot_in;
+  if not (Sys.file_exists directory) then
+    Unix.mkdir directory 0o755;
 
-  let svg_lines = read_all_lines svg_out in
-  close_in svg_out;
+  let svg_output, dot_input =
+    Unix.open_process "dot -Tsvg"
+  in
 
-  let exit_status = Unix.close_process (svg_out, dot_in) in
+  Dot.output_graph dot_input graph;
+  flush dot_input;
+  close_out dot_input;
 
-  let out_chan = open_out output_file in
+  let svg_lines =
+    read_all_lines svg_output
+  in
+
+  close_in svg_output;
+
+  let exit_status =
+    Unix.close_process
+      (svg_output, dot_input)
+  in
+
+  let output_channel =
+    open_out output_file
+  in
+
   List.iter
     (fun line ->
-      output_string out_chan line;
-      output_char out_chan '\n')
+      output_string output_channel line;
+      output_char output_channel '\n')
     svg_lines;
-  close_out out_chan;
+
+  close_out output_channel;
 
   match exit_status with
-  | Unix.WEXITED 0 -> ()
+  | Unix.WEXITED 0 ->
+      ()
+
   | Unix.WEXITED code ->
-      failwith (Printf.sprintf "Graphviz failed with exit code %d" code)
-  | _ -> failwith "Graphviz terminated abnormally"
+      failwith
+        (Printf.sprintf
+           "Graphviz failed with exit code %d"
+           code)
+
+  | _ ->
+      failwith
+        "Graphviz terminated abnormally"

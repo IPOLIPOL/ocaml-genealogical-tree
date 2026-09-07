@@ -23,10 +23,14 @@ let add_to_index key value index =
   String_map.add key (value :: existing) index
 
 (* Builds the individual map from the asserted registry list. *)
-let build_individuals (registry : individual list) =
+let build_individuals (registry : individual list) : individual String_map.t =
   List.fold_left
-    (fun (map : individual String_map.t) (individual : individual) ->
-      String_map.add individual.id individual map)
+    (fun (individuals_by_id : individual String_map.t)
+         (individual_value : individual) ->
+      String_map.add
+        individual_value.id
+        individual_value
+        individuals_by_id)
     String_map.empty
     registry
 
@@ -41,9 +45,16 @@ let build_indexes
     (fun (parent_child : parent_child_relation) ->
       if parent_child.confidence <> Rejected then begin
         parents_of :=
-          add_to_index parent_child.child parent_child.parent !parents_of;
+          add_to_index
+            parent_child.child
+            parent_child.parent
+            !parents_of;
+
         children_of :=
-          add_to_index parent_child.parent parent_child.child !children_of
+          add_to_index
+            parent_child.parent
+            parent_child.child
+            !children_of
       end)
     parent_child_relations;
 
@@ -51,9 +62,16 @@ let build_indexes
     (fun (spouse : spouse_relation) ->
       if spouse.confidence <> Rejected then begin
         spouses_of :=
-          add_to_index spouse.person1 spouse.person2 !spouses_of;
+          add_to_index
+            spouse.individual1_id
+            spouse.individual2_id
+            !spouses_of;
+
         spouses_of :=
-          add_to_index spouse.person2 spouse.person1 !spouses_of
+          add_to_index
+            spouse.individual2_id
+            spouse.individual1_id
+            !spouses_of
       end)
     spouse_relations;
 
@@ -67,19 +85,31 @@ let create
   : (graph, Validation.error list) result =
   let relations =
     List.map
-      (fun parent_child -> Relation.Parent_child parent_child)
+      (fun parent_child ->
+        Relation.Parent_child parent_child)
       parent_child_relations
-    @ List.map
-        (fun spouse -> Relation.Spouse spouse)
-        spouse_relations
+    @
+    List.map
+      (fun spouse ->
+        Relation.Spouse spouse)
+      spouse_relations
   in
+
   match Validation.validate ~individuals:registry ~relations with
-  | _ :: _ as errors -> Error errors
+  | _ :: _ as errors ->
+      Error errors
+
   | [] ->
-      let individual_map = build_individuals registry in
-      let parents_of, children_of, spouses_of =
-        build_indexes parent_child_relations spouse_relations
+      let individual_map =
+        build_individuals registry
       in
+
+      let parents_of, children_of, spouses_of =
+        build_indexes
+          parent_child_relations
+          spouse_relations
+      in
+
       Ok
         {
           individuals = individual_map;
@@ -90,11 +120,12 @@ let create
           spouses_of;
         }
 
-let individual (graph : graph) id =
+let find_individual (graph : graph) id =
   String_map.find_opt id graph.individuals
 
 let individuals (graph : graph) =
-  String_map.bindings graph.individuals |> List.map snd
+  String_map.bindings graph.individuals
+  |> List.map snd
 
 let parent_child_relations (graph : graph) =
   graph.parent_child_relations
@@ -120,32 +151,53 @@ let spouses_of (graph : graph) id =
 let events (graph : graph) =
   let individual_events =
     List.concat_map
-      (fun individual ->
+      (fun individual_value ->
         let birth =
-          match individual.birth_date with
-          | Unknown -> []
-          | date -> [ Event.Birth { person = individual.id; date } ]
+          match individual_value.birth_date with
+          | Unknown ->
+              []
+          | date ->
+              [
+                Event.Birth
+                  {
+                    individual_id = individual_value.id;
+                    date;
+                  };
+              ]
         in
+
         let death =
-          match individual.death_date with
-          | Unknown | Present -> []
-          | date -> [ Event.Death { person = individual.id; date } ]
+          match individual_value.death_date with
+          | Unknown | Present ->
+              []
+          | date ->
+              [
+                Event.Death
+                  {
+                    individual_id = individual_value.id;
+                    date;
+                  };
+              ]
         in
+
         birth @ death)
       (individuals graph)
   in
+
   let marriage_events =
     List.filter_map
       (fun spouse ->
         match spouse.marriage_date with
-        | Unknown -> None
+        | Unknown ->
+            None
+
         | date ->
             Some
               (Event.Marriage
                  {
-                   relation = spouse.id;
-                   person1 = spouse.person1;
-                   person2 = spouse.person2;
+                   relation_id = spouse.id;
+                   individual1_id = spouse.individual1_id;
+                   individual2_id = spouse.individual2_id;
                    date;
                    place = spouse.place;
                    source = spouse.source;
@@ -153,4 +205,5 @@ let events (graph : graph) =
                  }))
       graph.spouse_relations
   in
+
   individual_events @ marriage_events
